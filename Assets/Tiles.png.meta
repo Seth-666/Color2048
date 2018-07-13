@@ -261,12 +261,12 @@ TextureImporter:
       name: Mouth_02
       rect:
         serializedVersion: 2
-        x: 834
-        y: 46
-        width: 55
-        height: 24
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        x: 798
+        y: 37
+        width: 134
+        height: 30
+      alignment: 2
+      pivot: {x: 0.5, y: 1}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -281,12 +281,12 @@ TextureImporter:
       name: Mouth_03
       rect:
         serializedVersion: 2
-        x: 683
-        y: 40
-        width: 100
-        height: 30
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        x: 647
+        y: 32
+        width: 134
+        height: 35
+      alignment: 2
+      pivot: {x: 0.5, y: 1}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -301,12 +301,12 @@ TextureImporter:
       name: Mouth_04
       rect:
         serializedVersion: 2
-        x: 532
-        y: 11
-        width: 100
-        height: 55
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        x: 500
+        y: 16
+        width: 135
+        height: 53
+      alignment: 2
+      pivot: {x: 0.5, y: 1}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -325,8 +325,8 @@ TextureImporter:
         y: 1
         width: 134
         height: 69
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      alignment: 2
+      pivot: {x: 0.5, y: 1}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -341,12 +341,12 @@ TextureImporter:
       name: Mouth_01
       rect:
         serializedVersion: 2
-        x: 945
-        y: 57
-        width: 43
-        height: 14
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        x: 795
+        y: 85
+        width: 134
+        height: 10
+      alignment: 2
+      pivot: {x: 0.5, y: 1}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -366,7 +366,7 @@ TextureImporter:
         width: 128
         height: 128
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []

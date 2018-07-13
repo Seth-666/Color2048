@@ -7,6 +7,7 @@ public class Globals : MonoBehaviour {
 	public enum State{
 		Waiting,
 		Selected,
+		Busy,
 		Paused
 	}
 

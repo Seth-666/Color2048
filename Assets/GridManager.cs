@@ -32,6 +32,8 @@ public class GridManager : MonoBehaviour {
 	public int comboCount;
 
 	public Globals.State currState;
+	public Globals.State prevState;
+	public int waitCount;
 
 	//Which tile was last selected.
 	public Tile selectedTile;
@@ -45,19 +47,6 @@ public class GridManager : MonoBehaviour {
 		CreateGrid ();
 	}
 
-	public IEnumerator PopInTile(Tile tile){
-		float timer = 0;
-		while (timer < GlobalData.Instance.popinTime) {
-			timer += Time.deltaTime;
-			float lerpAmount = Mathf.InverseLerp (0, GlobalData.Instance.popinTime, timer);
-			float scaleAmount = GlobalData.Instance.popin.Evaluate (lerpAmount) * GlobalData.Instance.tileSize;
-			Vector3 targetScale = new Vector3 (scaleAmount, scaleAmount, scaleAmount);
-			tile.transform.localScale = targetScale;
-			yield return null;
-		}
-		tile.transform.localScale = new Vector3 (GlobalData.Instance.tileSize, GlobalData.Instance.tileSize, GlobalData.Instance.tileSize);
-	}
-
 	void Update(){
 		if (Input.GetKeyDown (KeyCode.Escape)) {
 			GameObject[] toDestroy = GameObject.FindGameObjectsWithTag ("Tile");
@@ -67,7 +56,33 @@ public class GridManager : MonoBehaviour {
 			allTiles.Clear ();
 			Start ();
 		}
-		InputDetection ();
+		if (currState != Globals.State.Busy) {
+			if (waitCount > 0) {
+				prevState = currState;
+				currState = Globals.State.Busy;
+			} else {
+				InputDetection ();
+			}
+		} else {
+			if (waitCount <= 0) {
+				currState = prevState;
+			}
+		}
+	}
+
+	public IEnumerator DropInTile(Tile tile, Vector2 targetPos){
+		waitCount++;
+		float timer = 0;
+		Vector3 startPos = targetPos;
+		startPos.y += 10.0f;
+		while (timer < GlobalData.Instance.popinTime) {
+			timer += Time.deltaTime;
+			Vector3 pos = Vector3.Lerp (startPos, targetPos, Mathf.InverseLerp (0, GlobalData.Instance.popinTime, timer));
+			tile.transform.position = pos;
+			yield return null;
+		}
+		tile.transform.position = targetPos;
+		waitCount--;
 	}
 
 	void InputDetection(){
@@ -231,7 +246,7 @@ public class GridManager : MonoBehaviour {
 				int surroundCount = SurroundingType (type, free [picked]);
 				Debug.Log ("Surrounds: " + surroundCount);
 				if (surroundCount < 2) {
-					CreateTile (free [picked].x, free [picked].y, type);
+					StartCoroutine(CreateTile (free [picked].x, free [picked].y, type));
 					xx++;
 					free.RemoveAt (picked);
 					if (free.Count <= 0) {
@@ -350,7 +365,7 @@ public class GridManager : MonoBehaviour {
 			int randY = Random.Range (0, ySize);
 			int type = Random.Range (0, GlobalData.Instance.colors.Length);
 			if (tiles [randX, randY] == null) {
-				CreateTile (randX, randY, type);
+				StartCoroutine(CreateTile (randX, randY, type));
 				xx++;
 			}
 		}
@@ -376,9 +391,11 @@ public class GridManager : MonoBehaviour {
 		return ret;
 	}
 
-	void CreateTile(int posX, int posY, int type){
+	IEnumerator CreateTile(int posX, int posY, int type){
+		yield return new WaitForSeconds (Random.Range(0.0f, 0.2f));
 		Tile newTile = Instantiate(GlobalData.Instance.tile);
-		newTile.transform.position = PosToVector2(posX, posY);
+		Vector2 pos = PosToVector2(posX, posY);
+		newTile.transform.position = new Vector2 (pos.x, pos.y + 10);
 		tiles [posX, posY] = newTile;
 		newTile.pos.x = posX;
 		newTile.pos.y = posY;
@@ -387,7 +404,7 @@ public class GridManager : MonoBehaviour {
 		if (!allTiles.Contains (newTile)) {
 			allTiles.Add (newTile);
 		}
-		StartCoroutine (PopInTile (newTile));
+		StartCoroutine (DropInTile (newTile, pos));
 	}
 
 	public Vector2 PosToVector2(int xx, int yy){

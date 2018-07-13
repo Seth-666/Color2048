@@ -52,6 +52,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bg: {fileID: 114050342526386862, guid: 91b58a76514734d4bbb720152058cc44, type: 2}
+  bg2: {fileID: 114899354370112758, guid: ce01a9c887088c9409135a03885d5e7d, type: 2}
   tile: {fileID: 114348042250552134, guid: 918b4c393e5bd4145acb1cef3d434a0b, type: 2}
   colors:
   - colors:
