@@ -20,6 +20,8 @@ public class Tile : MonoBehaviour {
 	Vector2 startPos;
 	public float floatTimer;
 
+	public SpriteRenderer[] sprites;
+
 	void Start(){
 		blinkTimer = Random.Range (5.0f, 10.0f);
 		initialized = true;
@@ -30,9 +32,23 @@ public class Tile : MonoBehaviour {
 		FloatBehavior ();
 	}
 
+	public void ChangeLayers(bool higher){
+		if (higher) {
+			for (int xx = 0; xx < sprites.Length; xx++) {
+				sprites [xx].sortingOrder += 100;
+			}
+		}
+		else{
+			for (int xx = 0; xx < sprites.Length; xx++) {
+				sprites [xx].sortingOrder -= 100;
+			}
+		}
+	}
+
 	public void ToggleState(Globals.State newState){
 		if (state == Globals.State.Waiting) {
 			if (newState == Globals.State.Selected) {
+				ChangeLayers (true);
 				startPos = this.transform.position;
 				floatTimer = 0;
 				state = newState;
@@ -40,12 +56,14 @@ public class Tile : MonoBehaviour {
 			}
 		} else if (state == Globals.State.Moving) {
 			if (newState == Globals.State.Waiting) {
+				ChangeLayers (false);
 				state = newState;
 				mouthAnim.SetBool ("Active", false);
 			}
 		} else if (state == Globals.State.Selected) {
 			if (newState == Globals.State.Waiting) {
 				this.transform.position = startPos;
+				ChangeLayers (false);
 				state = newState;
 				mouthAnim.SetBool ("Active", false);
 			}
