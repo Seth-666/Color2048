@@ -37,12 +37,15 @@ public class GridManager : MonoBehaviour {
 
 	//Which tile was last selected.
 	public Tile selectedTile;
+	public float selectionTimer;
 
 	public bool matchFound = false;
 
 	List<Tile> allTiles;
 
 	void Start(){
+		currState = Globals.State.Waiting;
+		prevState = Globals.State.Waiting;
 		Initialize ();
 		CreateGrid ();
 	}
@@ -56,28 +59,53 @@ public class GridManager : MonoBehaviour {
 			allTiles.Clear ();
 			Start ();
 		}
-		if (currState != Globals.State.Busy) {
+		if (currState == Globals.State.Waiting) {
 			if (waitCount > 0) {
 				prevState = currState;
 				currState = Globals.State.Busy;
-			} else {
+			}
+			else {
 				InputDetection ();
 			}
-		} else {
+		} else if (currState == Globals.State.Selected) {
+			if (waitCount > 0) {
+				prevState = currState;
+				currState = Globals.State.Busy;
+			}
+			else {
+				InputDetection ();
+			}
+		} else if (currState == Globals.State.Busy) {
 			if (waitCount <= 0) {
 				currState = prevState;
+			}
+		} else if (currState == Globals.State.Moving) {
+			if (waitCount <= 0) {
+				GridSweep();
 			}
 		}
 	}
 
-	public IEnumerator DropInTile(Tile tile, Vector2 targetPos){
-		waitCount++;
+	IEnumerator DropInTile(Tile tile, Vector2 targetPos){
 		float timer = 0;
-		Vector3 startPos = targetPos;
+		Vector2 startPos = targetPos;
 		startPos.y += 10.0f;
-		while (timer < GlobalData.Instance.popinTime) {
+		while (timer < GlobalData.Instance.dropTime) {
 			timer += Time.deltaTime;
-			Vector3 pos = Vector3.Lerp (startPos, targetPos, Mathf.InverseLerp (0, GlobalData.Instance.popinTime, timer));
+			Vector2 pos = Vector2.Lerp (startPos, targetPos, Mathf.InverseLerp (0, GlobalData.Instance.dropTime, timer));
+			tile.transform.position = pos;
+			yield return null;
+		}
+		tile.transform.position = targetPos;
+		waitCount--;
+	}
+
+	IEnumerator MoveTile(Tile tile, Vector2 targetPos){
+		float timer = 0;
+		Vector2 startPos = tile.transform.position;
+		while (timer < 1.0f) {
+			timer += Time.deltaTime * 5;
+			Vector2 pos = Vector2.Lerp(startPos, targetPos, Mathf.InverseLerp(0, 1.0f, timer));
 			tile.transform.position = pos;
 			yield return null;
 		}
@@ -101,14 +129,15 @@ public class GridManager : MonoBehaviour {
 					ToggleMode (Globals.State.Waiting);
 				} else {
 					if (Physics2D.OverlapPoint (mousePos, backgroundLayer)) {
+						selectedTile.ToggleState (Globals.State.Moving);
+						currState = Globals.State.Moving;
+						waitCount++;
 						BackgroundTile bgObj = Physics2D.OverlapPoint(mousePos, backgroundLayer).GetComponent<BackgroundTile>();
-						selectedTile.transform.position = bgObj.transform.position;
 						tiles [selectedTile.pos.x, selectedTile.pos.y] = null;
 						selectedTile.pos.x = bgObj.pos.x;
 						selectedTile.pos.y = bgObj.pos.y;
 						tiles [bgObj.pos.x, bgObj.pos.y] = selectedTile;
-						//Wait for movement finish.
-						GridSweep ();
+						StartCoroutine(MoveTile(selectedTile, bgObj.transform.position));
 					}
 					else{
 						ToggleMode(Globals.State.Waiting);
@@ -123,20 +152,17 @@ public class GridManager : MonoBehaviour {
 		//If any hits are made, cancel remaining checks and merge together/remove.
 		//If no hits, don't forget to spawn more tiles.
 		if (AllEqual (Globals.GetHorizSquares(selectedTile.pos), selectedTile.type, selectedTile.level)) {
-			Debug.Log ("Horiz set found.");
 			matchFound = true;
 			ClearTiles (ReturnEqual (Globals.GetHorizSquares (selectedTile.pos), selectedTile.type, selectedTile.level));
 		}
 		if (!matchFound) {
 			if (AllEqual (Globals.GetVertSquares(selectedTile.pos), selectedTile.type, selectedTile.level)) {
-				Debug.Log ("Vert set found.");
 				matchFound = true;
 				ClearTiles (ReturnEqual (Globals.GetVertSquares (selectedTile.pos), selectedTile.type, selectedTile.level));
 			}
 		}
 		if (!matchFound) {
 			if (AllEqual (Globals.GetSquareSets(selectedTile.pos), selectedTile.type, selectedTile.level)) {
-				Debug.Log ("Square set found.");
 				matchFound = true;
 				ClearTiles (ReturnEqual (Globals.GetSquareSets (selectedTile.pos), selectedTile.type, selectedTile.level));
 			}
@@ -151,7 +177,17 @@ public class GridManager : MonoBehaviour {
 			matchFound = false;
 			ToggleMode (Globals.State.Waiting);
 		}
+	}
 
+	void ToggleMode(Globals.State theState){
+		if (theState == Globals.State.Selected) {
+			currState = theState;
+			selectedTile.ToggleState (Globals.State.Selected);
+		} else if (theState == Globals.State.Waiting) {
+			currState = theState;
+			selectedTile.ToggleState (Globals.State.Waiting);
+			selectedTile = null;
+		}
 	}
 
 	//Checks if all tiles in grid are equal.
@@ -244,7 +280,6 @@ public class GridManager : MonoBehaviour {
 				int picked = Random.Range (0, free.Count);
 				int type = Random.Range (0, GlobalData.Instance.colors.Length);
 				int surroundCount = SurroundingType (type, free [picked]);
-				Debug.Log ("Surrounds: " + surroundCount);
 				if (surroundCount < 2) {
 					StartCoroutine(CreateTile (free [picked].x, free [picked].y, type));
 					xx++;
@@ -310,17 +345,6 @@ public class GridManager : MonoBehaviour {
 			}
 		}
 		return ret;
-	}
-
-	void ToggleMode(Globals.State theState){
-		if (theState == Globals.State.Selected) {
-			currState = theState;
-			selectedTile.ToggleState (true);
-		} else if (theState == Globals.State.Waiting) {
-			currState = theState;
-			selectedTile.ToggleState (false);
-			selectedTile = null;
-		}
 	}
 
 	void Initialize(){
@@ -392,10 +416,11 @@ public class GridManager : MonoBehaviour {
 	}
 
 	IEnumerator CreateTile(int posX, int posY, int type){
-		yield return new WaitForSeconds (Random.Range(0.0f, 0.2f));
+		waitCount++;
 		Tile newTile = Instantiate(GlobalData.Instance.tile);
 		Vector2 pos = PosToVector2(posX, posY);
 		newTile.transform.position = new Vector2 (pos.x, pos.y + 10);
+		newTile.state = Globals.State.Waiting;
 		tiles [posX, posY] = newTile;
 		newTile.pos.x = posX;
 		newTile.pos.y = posY;
@@ -404,6 +429,7 @@ public class GridManager : MonoBehaviour {
 		if (!allTiles.Contains (newTile)) {
 			allTiles.Add (newTile);
 		}
+		yield return new WaitForSeconds (Random.Range(0.05f, 0.3f));
 		StartCoroutine (DropInTile (newTile, pos));
 	}
 

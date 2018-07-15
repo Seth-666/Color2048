@@ -5,6 +5,7 @@ using UnityEngine;
 public class Globals : MonoBehaviour {
 
 	public enum State{
+		Moving,
 		Waiting,
 		Selected,
 		Busy,

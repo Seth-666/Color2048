@@ -164,6 +164,8 @@ MonoBehaviour:
   maxSpawn: 6
   comboCount: 0
   currState: 0
+  prevState: 0
+  waitCount: 0
   selectedTile: {fileID: 0}
   matchFound: 0
 --- !u!20 &519420031
@@ -256,10 +258,9 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 114856418280278472, guid: 95d19cc966748f241827c826676c1155,
         type: 2}
-      propertyPath: bg2
-      value: 
-      objectReference: {fileID: 114899354370112758, guid: ce01a9c887088c9409135a03885d5e7d,
-        type: 2}
+      propertyPath: dropTime
+      value: 0.4
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 95d19cc966748f241827c826676c1155, type: 2}
   m_IsPrefabParent: 0

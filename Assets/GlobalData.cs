@@ -12,8 +12,9 @@ public class GlobalData : MonoBehaviour {
 
 	public Globals.ColorSet[] colors;
 
-	public AnimationCurve popin;
-	public float popinTime;
+	public AnimationCurve floatCurve;
+
+	public float dropTime;
 	public float tileSize;
 
 	void Awake(){
