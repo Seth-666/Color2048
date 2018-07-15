@@ -75,7 +75,7 @@ MonoBehaviour:
     - {r: 0.59607846, g: 0.7921569, b: 0.24313726, a: 1}
     - {r: 0.36862746, g: 0.7137255, b: 0.27450982, a: 1}
     - {r: 0.20784314, g: 0.5882353, b: 0.27058825, a: 1}
-  popin:
+  floatCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
@@ -88,17 +88,17 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.50192857
-      value: 1.1234506
-      inSlope: 1.494429
-      outSlope: 1.494429
+      time: 0.19845858
+      value: 0.20680627
+      inSlope: 0
+      outSlope: 0
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
       time: 1
-      value: 1
+      value: 0
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -108,5 +108,5 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  popinTime: 0.4
+  dropTime: 0.4
   tileSize: 0.45
