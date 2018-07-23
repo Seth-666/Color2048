@@ -10,6 +10,8 @@ public class Globals : MonoBehaviour {
 		Selected,
 		Busy,
 		Paused,
+		Swap,
+		SwapSelected
 	}
 
 	public enum Direction{

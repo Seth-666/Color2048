@@ -23,6 +23,10 @@ public class UIManager : MonoBehaviour {
 	}
 
 	public void Swap(){
-
+		if (GameManager.Instance.grid.currState == Globals.State.Waiting) {
+			GameManager.Instance.grid.ToggleMode (Globals.State.Swap);
+		} else if (GameManager.Instance.grid.currState == Globals.State.Swap || GameManager.Instance.grid.currState == Globals.State.SwapSelected) {
+			GameManager.Instance.grid.ToggleMode (Globals.State.Waiting);
+		}
 	}
 }

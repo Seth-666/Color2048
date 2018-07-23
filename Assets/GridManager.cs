@@ -60,7 +60,7 @@ public class GridManager : MonoBehaviour {
 			allTiles.Clear ();
 			Start ();
 		}
-		if (currState == Globals.State.Waiting) {
+		if (currState == Globals.State.Waiting || currState == Globals.State.Swap) {
 			if (waitCount > 0) {
 				prevState = currState;
 				currState = Globals.State.Busy;
@@ -68,7 +68,7 @@ public class GridManager : MonoBehaviour {
 			else {
 				InputDetection ();
 			}
-		} else if (currState == Globals.State.Selected) {
+		} else if (currState == Globals.State.Selected || currState == Globals.State.SwapSelected) {
 			if (waitCount > 0) {
 				prevState = currState;
 				currState = Globals.State.Busy;
@@ -117,7 +117,11 @@ public class GridManager : MonoBehaviour {
 					if (tiles [positions [pickedPos].x, positions [pickedPos].y] == null) {
 						positions.RemoveAt (pickedPos);
 						Vector2 targetPos = PosToVector2 (pos.x, pos.y);
-						StartCoroutine (MoveTile (allTiles [xx], targetPos, pos.x, pos.y, Random.Range(0.1f, 0.5f)));
+						tiles [allTiles[xx].pos.x, allTiles[xx].pos.y] = null;
+						allTiles[xx].pos.x = pos.x;
+						allTiles[xx].pos.y = pos.y;
+						tiles [pos.x, pos.y] = allTiles[xx];
+						StartCoroutine (MoveTile (allTiles [xx], targetPos, Random.Range(0.1f, 0.5f)));
 						xx++;
 					}
 				}
@@ -140,13 +144,13 @@ public class GridManager : MonoBehaviour {
 		waitCount--;
 	}
 
-	IEnumerator MoveTile(Tile tile, Vector2 targetPos, int posX, int posY, float waitTime){
+	IEnumerator MoveTile(Tile tile, Vector2 targetPos, float waitTime){
 		waitCount++;
 		tile.ToggleState (Globals.State.Moving);
-		tiles [tile.pos.x, tile.pos.y] = null;
-		tile.pos.x = posX;
-		tile.pos.y = posY;
-		tiles [posX, posY] = tile;
+		//tiles [tile.pos.x, tile.pos.y] = null;
+		//tile.pos.x = posX;
+		//tile.pos.y = posY;
+		//tiles [posX, posY] = tile;
 
 		if (waitTime > 0) {
 			yield return new WaitForSeconds (waitTime);
@@ -182,22 +186,55 @@ public class GridManager : MonoBehaviour {
 				} else {
 					if (Physics2D.OverlapPoint (mousePos, backgroundLayer)) {
 						currState = Globals.State.Moving;
-						BackgroundTile bgObj = Physics2D.OverlapPoint(mousePos, backgroundLayer).GetComponent<BackgroundTile>();
+						BackgroundTile bgObj = Physics2D.OverlapPoint (mousePos, backgroundLayer).GetComponent<BackgroundTile> ();
 						if (tiles [bgObj.pos.x, bgObj.pos.y] == null) {
-							StartCoroutine (MoveTile (selectedTile, bgObj.transform.position, bgObj.pos.x, bgObj.pos.y, 0));
+							tiles [selectedTile.pos.x, selectedTile.pos.y] = null;
+							selectedTile.pos.x = bgObj.pos.x;
+							selectedTile.pos.y = bgObj.pos.y;
+							tiles [bgObj.pos.x, bgObj.pos.y] = selectedTile;
+							StartCoroutine (MoveTile (selectedTile, bgObj.transform.position, 0));
 						} else {
 							ToggleMode (Globals.State.Waiting);
 						}
+					} else {
+						ToggleMode (Globals.State.Waiting);
 					}
-					else{
-						ToggleMode(Globals.State.Waiting);
+				}
+			} else if (currState == Globals.State.Swap) {
+				if (Physics2D.OverlapPoint (mousePos, tileLayer)) {
+					selectedTile = Physics2D.OverlapPoint (mousePos, tileLayer).GetComponent<Tile> ();
+					ToggleMode (Globals.State.SwapSelected);
+				}
+			} else if (currState == Globals.State.SwapSelected) {
+				if (Physics2D.OverlapPoint (mousePos, tileLayer)) {
+					Tile temp = Physics2D.OverlapPoint (mousePos, tileLayer).GetComponent<Tile> ();
+					if (temp != selectedTile) {
+						currState = Globals.State.Busy;
+						int posX = selectedTile.pos.x;
+						int posY = selectedTile.pos.y;
+						selectedTile.pos.x = temp.pos.x;
+						selectedTile.pos.y = temp.pos.y;
+						temp.pos.x = posX;
+						temp.pos.y = posY;
+						tiles [temp.pos.x, temp.pos.y] = temp;
+						tiles [selectedTile.pos.x, selectedTile.pos.y] = selectedTile;
+						Vector2 posA = selectedTile.transform.position;
+						Vector2 posB = temp.transform.position;
+						selectedTile.ToggleState (Globals.State.Waiting);
+						StartCoroutine (MoveTile (selectedTile, posB, 0));
+						StartCoroutine (MoveTile (temp, posA, 0));
+					} else {
+						ToggleMode (Globals.State.Swap);
 					}
+				} else {
+					ToggleMode (Globals.State.Swap);
 				}
 			}
 		}
 	}
 
 	void GridSweep(){
+		Debug.Log ("Sweeping grid.");
 		//Check each of the cells in a square-pattern around the origin.
 		//If any hits are made, cancel remaining checks and merge together/remove.
 		//If no hits, don't forget to spawn more tiles.
@@ -220,23 +257,56 @@ public class GridManager : MonoBehaviour {
 			
 		if (!matchFound) {
 			comboCount = 0;
-			SpawnExtraTiles ();
 			ToggleMode (Globals.State.Waiting);
+			SpawnExtraTiles ();
 		} else {
 			comboCount++;
 			matchFound = false;
 			ToggleMode (Globals.State.Waiting);
 		}
+		ResetGrid ();
 	}
 
-	void ToggleMode(Globals.State theState){
-		if (theState == Globals.State.Selected) {
-			currState = theState;
-			selectedTile.ToggleState (Globals.State.Selected);
-		} else if (theState == Globals.State.Waiting) {
-			currState = theState;
-			selectedTile.ToggleState (Globals.State.Waiting);
-			selectedTile = null;
+	public void ToggleMode(Globals.State theState){
+		if (currState == Globals.State.Waiting) {
+			if (theState == Globals.State.Selected) {
+				currState = theState;
+				selectedTile.ToggleState (Globals.State.Selected);
+			}
+			if (theState == Globals.State.Swap) {
+				currState = theState;
+			}
+		} else if (currState == Globals.State.Selected) {
+			if (theState == Globals.State.Waiting) {
+				currState = theState;
+				selectedTile.ToggleState (Globals.State.Waiting);
+				selectedTile = null;
+			}
+		} else if (currState == Globals.State.Swap) {
+			if (theState == Globals.State.Waiting) {
+				currState = theState;
+			} else if (theState == Globals.State.SwapSelected) {
+				currState = theState;
+				selectedTile.ToggleState (Globals.State.Selected);
+			}
+		} else if (currState == Globals.State.SwapSelected) {
+			if (theState == Globals.State.Waiting) {
+				currState = theState;
+				selectedTile.ToggleState (Globals.State.Waiting);
+				selectedTile = null;
+			} else if (theState == Globals.State.Swap) {
+				currState = theState;
+				selectedTile.ToggleState (Globals.State.Waiting);
+				selectedTile = null;
+			}
+		} else if (currState == Globals.State.Busy || currState == Globals.State.Moving) {
+			if (theState == Globals.State.Waiting) {
+				currState = theState;
+				if (selectedTile != null) {
+					selectedTile.ToggleState (Globals.State.Waiting);
+					selectedTile = null;
+				}
+			}
 		}
 		ResetGrid ();
 	}
@@ -335,9 +405,7 @@ public class GridManager : MonoBehaviour {
 		//Otherwise, destroy them.
 		else {
 			for (int xx = 0; xx < positions.Count; xx++) {
-				allTiles.Remove (tiles [positions [xx].x, positions [xx].y]);
-				Destroy (tiles [positions [xx].x, positions [xx].y].gameObject);
-				tiles [positions [xx].x, positions [xx].y] = null;
+				RemoveTile (tiles [positions [xx].x, positions [xx].y]);
 			}
 		}
 		ResetGrid ();
@@ -364,9 +432,7 @@ public class GridManager : MonoBehaviour {
 		}
 		for(int xx = 0; xx < pos.Count; xx++){
 			if(xx != picked){
-				allTiles.Remove (tiles [pos [xx].x, pos [xx].y]);
-				Destroy (tiles [pos [xx].x, pos [xx].y].gameObject);
-				tiles [pos [xx].x, pos [xx].y] = null;
+				RemoveTile (tiles [pos [xx].x, pos [xx].y]);
 			}
 			else{
 				pickedTile.level++;
@@ -375,6 +441,14 @@ public class GridManager : MonoBehaviour {
 		}
 		waitCount--;
 		ResetGrid ();
+	}
+
+	void RemoveTile(Tile tile){
+		if (allTiles.Contains (tile)) {
+			allTiles.Remove (tile);
+		}
+		tiles [tile.pos.x, tile.pos.y] = null;
+		Destroy (tile.gameObject);
 	}
 
 	void SpawnExtraTiles(){
