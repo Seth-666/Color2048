@@ -41,9 +41,10 @@ public class GridManager : MonoBehaviour {
 
 	public bool matchFound = false;
 
-	List<Tile> allTiles;
+	public List<Tile> allTiles;
 
 	void Start(){
+		GameManager.Instance.grid = this;
 		currState = Globals.State.Waiting;
 		prevState = Globals.State.Waiting;
 		Initialize ();
@@ -86,13 +87,52 @@ public class GridManager : MonoBehaviour {
 		}
 	}
 
+	//Resets whole grid to ensure that tiles aren't accidentally spawned over each other.
+	void ResetGrid(){
+		tiles = new Tile[xSize, ySize];
+		for (int xx = 0; xx < allTiles.Count; xx++) {
+			tiles [allTiles [xx].pos.x, allTiles [xx].pos.y] = allTiles [xx];
+		}
+	}
+
+	public void Shuffle(){
+		if (currState == Globals.State.Waiting) {
+			//Get list of positions available.
+			List<Globals.Coord> positions = new List<Globals.Coord> ();
+			for (int xx = 0; xx < xSize; xx++) {
+				for (int yy = 0; yy < ySize; yy++) {
+					if (grid [xx, yy] == true) {
+						Globals.Coord pos = new Globals.Coord (xx, yy);
+						positions.Add (pos);
+					}
+				}
+			}
+			//Clear all tiles from the grid.
+			tiles = new Tile[xSize, ySize];
+			for (int xx = 0; xx < allTiles.Count;) {
+				int pickedPos = Random.Range (0, positions.Count);
+				Globals.Coord pos = positions [pickedPos];
+				int surroundCount = SurroundingType (allTiles[xx].type, positions [pickedPos]);
+				if (surroundCount < 2) {
+					if (tiles [positions [pickedPos].x, positions [pickedPos].y] == null) {
+						positions.RemoveAt (pickedPos);
+						Vector2 targetPos = PosToVector2 (pos.x, pos.y);
+						StartCoroutine (MoveTile (allTiles [xx], targetPos, pos.x, pos.y, Random.Range(0.1f, 0.5f)));
+						xx++;
+					}
+				}
+			}
+		}
+		ResetGrid ();
+	}
+
 	IEnumerator DropInTile(Tile tile, Vector2 targetPos){
 		float timer = 0;
 		Vector2 startPos = targetPos;
 		startPos.y += 10.0f;
-		while (timer < GlobalData.Instance.dropTime) {
+		while (timer < GameManager.Instance.dropTime) {
 			timer += Time.deltaTime;
-			Vector2 pos = Vector2.Lerp (startPos, targetPos, Mathf.InverseLerp (0, GlobalData.Instance.dropTime, timer));
+			Vector2 pos = Vector2.Lerp (startPos, targetPos, Mathf.InverseLerp (0, GameManager.Instance.dropTime, timer));
 			tile.transform.position = pos;
 			yield return null;
 		}
@@ -100,11 +140,21 @@ public class GridManager : MonoBehaviour {
 		waitCount--;
 	}
 
-	IEnumerator MoveTile(Tile tile, Vector2 targetPos){
+	IEnumerator MoveTile(Tile tile, Vector2 targetPos, int posX, int posY, float waitTime){
+		waitCount++;
+		tile.ToggleState (Globals.State.Moving);
+		tiles [tile.pos.x, tile.pos.y] = null;
+		tile.pos.x = posX;
+		tile.pos.y = posY;
+		tiles [posX, posY] = tile;
+
+		if (waitTime > 0) {
+			yield return new WaitForSeconds (waitTime);
+		}
 		float timer = 0;
 		Vector2 startPos = tile.transform.position;
 		while (timer < 1.0f) {
-			timer += Time.deltaTime * 5;
+			timer += Time.deltaTime * 7;
 			Vector2 pos = Vector2.Lerp(startPos, targetPos, Mathf.InverseLerp(0, 1.0f, timer));
 			tile.transform.position = pos;
 			yield return null;
@@ -121,7 +171,9 @@ public class GridManager : MonoBehaviour {
 			if (currState == Globals.State.Waiting) {
 				if (Physics2D.OverlapPoint (mousePos, tileLayer)) {
 					selectedTile = Physics2D.OverlapPoint (mousePos, tileLayer).GetComponent<Tile> ();
-					ToggleMode (Globals.State.Selected);
+					if (currState == Globals.State.Waiting) {
+						ToggleMode (Globals.State.Selected);
+					}
 				}
 			} else if (currState == Globals.State.Selected) {
 				if (Physics2D.OverlapPoint (mousePos, tileLayer)) {
@@ -129,15 +181,13 @@ public class GridManager : MonoBehaviour {
 					ToggleMode (Globals.State.Waiting);
 				} else {
 					if (Physics2D.OverlapPoint (mousePos, backgroundLayer)) {
-						selectedTile.ToggleState (Globals.State.Moving);
 						currState = Globals.State.Moving;
-						waitCount++;
 						BackgroundTile bgObj = Physics2D.OverlapPoint(mousePos, backgroundLayer).GetComponent<BackgroundTile>();
-						tiles [selectedTile.pos.x, selectedTile.pos.y] = null;
-						selectedTile.pos.x = bgObj.pos.x;
-						selectedTile.pos.y = bgObj.pos.y;
-						tiles [bgObj.pos.x, bgObj.pos.y] = selectedTile;
-						StartCoroutine(MoveTile(selectedTile, bgObj.transform.position));
+						if (tiles [bgObj.pos.x, bgObj.pos.y] == null) {
+							StartCoroutine (MoveTile (selectedTile, bgObj.transform.position, bgObj.pos.x, bgObj.pos.y, 0));
+						} else {
+							ToggleMode (Globals.State.Waiting);
+						}
 					}
 					else{
 						ToggleMode(Globals.State.Waiting);
@@ -188,6 +238,7 @@ public class GridManager : MonoBehaviour {
 			selectedTile.ToggleState (Globals.State.Waiting);
 			selectedTile = null;
 		}
+		ResetGrid ();
 	}
 
 	//Checks if all tiles in grid are equal.
@@ -262,14 +313,68 @@ public class GridManager : MonoBehaviour {
 	}
 
 	void ClearTiles(List<Globals.Coord> positions){
-		/*if (a.level < maxLevel) {
-
-		}*/ 
-		for(int xx = 0; xx < positions.Count; xx++){
-			allTiles.Remove (tiles[positions[xx].x, positions[xx].y]);
-			Destroy(tiles[positions[xx].x, positions[xx].y].gameObject);
-			tiles [positions[xx].x, positions[xx].y] = null;
+		//First we tally the score.
+		int score = 0;
+		//If 4 tiles are matched, the score is 4 * the level of the tiles * the current combo.
+		if (positions.Count == 4) {
+			int val = 4 * (tiles [positions [0].x, positions [0].y].level + 1);
+			val *= comboCount + 1;
+			score += val;
+		} 
+		//If 6 tiles are matched, the score is 6 * 2 * the level of the tiles * the current combo.
+		else if (positions.Count == 6) {
+			int val = 12 * (tiles [positions [0].x, positions [0].y].level + 1);
+			val *= comboCount + 1;
+			score += val;
 		}
+		GameManager.Instance.ui.AddToScore (score);
+		//If there's levels in the game, check to see if the tiles can upgrade.
+		if (tiles [positions [0].x, positions [0].y].level < maxLevel) {
+			StartCoroutine (UpgradeTiles (positions));
+		}
+		//Otherwise, destroy them.
+		else {
+			for (int xx = 0; xx < positions.Count; xx++) {
+				allTiles.Remove (tiles [positions [xx].x, positions [xx].y]);
+				Destroy (tiles [positions [xx].x, positions [xx].y].gameObject);
+				tiles [positions [xx].x, positions [xx].y] = null;
+			}
+		}
+		ResetGrid ();
+	}
+
+	IEnumerator UpgradeTiles(List<Globals.Coord> pos){
+		waitCount++;
+		int picked = Random.Range (0, pos.Count);
+		Tile pickedTile = tiles [pos [picked].x, pos [picked].y];
+		Vector2[] startPositions = new Vector2[pos.Count];
+		Vector2 endPos = pickedTile.transform.position;
+		for (int xx = 0; xx < startPositions.Length; xx++) {
+			startPositions [xx] = PosToVector2 (pos [xx].x, pos [xx].y);
+		}
+		float timer = 0;
+		while (timer < 1.0f) {
+			timer += Time.deltaTime * 10;
+			for (int xx = 0; xx < pos.Count; xx++) {
+				if (xx != picked) {
+					tiles [pos [xx].x, pos [xx].y].transform.position = Vector2.Lerp (startPositions [xx], endPos, timer);
+				}
+			}
+			yield return null;
+		}
+		for(int xx = 0; xx < pos.Count; xx++){
+			if(xx != picked){
+				allTiles.Remove (tiles [pos [xx].x, pos [xx].y]);
+				Destroy (tiles [pos [xx].x, pos [xx].y].gameObject);
+				tiles [pos [xx].x, pos [xx].y] = null;
+			}
+			else{
+				pickedTile.level++;
+				pickedTile.render.color = GameManager.Instance.colors[pickedTile.type].colors[pickedTile.level];
+			}
+		}
+		waitCount--;
+		ResetGrid ();
 	}
 
 	void SpawnExtraTiles(){
@@ -278,20 +383,23 @@ public class GridManager : MonoBehaviour {
 			int spawnCount = Random.Range (minSpawn, maxSpawn);
 			for (int xx = 0; xx < spawnCount;) {
 				int picked = Random.Range (0, free.Count);
-				int type = Random.Range (0, GlobalData.Instance.colors.Length);
+				int type = Random.Range (0, GameManager.Instance.colors.Length);
 				int surroundCount = SurroundingType (type, free [picked]);
+				Globals.Coord pos = free [picked];
 				if (surroundCount < 2) {
-					StartCoroutine(CreateTile (free [picked].x, free [picked].y, type));
-					xx++;
 					free.RemoveAt (picked);
+					StartCoroutine(CreateTile (pos.x, pos.y, type));
 					if (free.Count <= 0) {
+						Debug.Log ("No free spaces found. Game over.");
 						break;
 					}
+					xx++;
 				}
 			}
 		} else {
 			Debug.Log ("No free spaces found. Game over.");
 		}
+		ResetGrid ();
 	}
 
 	int SurroundingType(int type, Globals.Coord pos){
@@ -364,20 +472,22 @@ public class GridManager : MonoBehaviour {
 			for (int yy = 0; yy < ySize; yy++) {
 				if (grid [xx, yy]) {
 					Vector2 myPos = PosToVector2 (xx, yy);
-					BackgroundTile bg = null;
+					BackgroundTile bg = Instantiate(GameManager.Instance.bg);
+					Color col = bg.render.color;
 					if (xx % 2 == 0) {
 						if (yy % 2 == 0) {
-							bg = Instantiate (GlobalData.Instance.bg);
+							col.a = Mathf.InverseLerp(0, 255, GameManager.Instance.bg1);
 						} else {
-							bg = Instantiate (GlobalData.Instance.bg2);
+							col.a = Mathf.InverseLerp(0, 255, GameManager.Instance.bg2);
 						}
 					} else {
 						if (yy % 2 == 0) {
-							bg = Instantiate (GlobalData.Instance.bg2);
+							col.a = Mathf.InverseLerp(0, 255, GameManager.Instance.bg2);
 						} else {
-							bg = Instantiate (GlobalData.Instance.bg);
+							col.a = Mathf.InverseLerp(0, 255, GameManager.Instance.bg1);
 						}
 					}
+					bg.render.color = col;
 					bg.transform.position = myPos;
 					bg.pos.x = xx;
 					bg.pos.y = yy;
@@ -387,12 +497,13 @@ public class GridManager : MonoBehaviour {
 		for (int xx = 0; xx < startingTiles;) {
 			int randX = Random.Range (0, xSize);
 			int randY = Random.Range (0, ySize);
-			int type = Random.Range (0, GlobalData.Instance.colors.Length);
+			int type = Random.Range (0, GameManager.Instance.colors.Length);
 			if (tiles [randX, randY] == null) {
 				StartCoroutine(CreateTile (randX, randY, type));
 				xx++;
 			}
 		}
+		ResetGrid ();
 	}
 
 	public bool IsInGrid(Globals.Coord pos){
@@ -417,7 +528,7 @@ public class GridManager : MonoBehaviour {
 
 	IEnumerator CreateTile(int posX, int posY, int type){
 		waitCount++;
-		Tile newTile = Instantiate(GlobalData.Instance.tile);
+		Tile newTile = Instantiate(GameManager.Instance.tile);
 		Vector2 pos = PosToVector2(posX, posY);
 		newTile.transform.position = new Vector2 (pos.x, pos.y + 10);
 		newTile.state = Globals.State.Waiting;
@@ -425,7 +536,7 @@ public class GridManager : MonoBehaviour {
 		newTile.pos.x = posX;
 		newTile.pos.y = posY;
 		newTile.type = type;
-		newTile.render.color = GlobalData.Instance.colors [newTile.type].colors [0];
+		newTile.render.color = GameManager.Instance.colors [newTile.type].colors [0];
 		if (!allTiles.Contains (newTile)) {
 			allTiles.Add (newTile);
 		}

@@ -81,6 +81,7 @@ MonoBehaviour:
   pos:
     x: 0
     y: 0
+  render: {fileID: 212610951277693300}
 --- !u!212 &212610951277693300
 SpriteRenderer:
   m_ObjectHideFlags: 1

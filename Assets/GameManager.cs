@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GlobalData : MonoBehaviour {
+public class GameManager : MonoBehaviour {
 
-	public static GlobalData Instance;
+	public static GameManager Instance;
 
 	public BackgroundTile bg;
-	public BackgroundTile bg2;
+	public float bg1;
+	public float bg2;
 	public Tile tile;
+
+	public GridManager grid;
+	public UIManager ui;
 
 	public Globals.ColorSet[] colors;
 

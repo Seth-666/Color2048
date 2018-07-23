@@ -79,7 +79,7 @@ public class Tile : MonoBehaviour {
 				floatTimer = 0;
 			}
 			floatTimer += Time.deltaTime;
-			Vector2 newPos = new Vector2 (startPos.x, startPos.y + (GlobalData.Instance.floatCurve.Evaluate (floatTimer)));
+			Vector2 newPos = new Vector2 (startPos.x, startPos.y + (GameManager.Instance.floatCurve.Evaluate (floatTimer)));
 			this.transform.position = newPos;
 		}
 	}

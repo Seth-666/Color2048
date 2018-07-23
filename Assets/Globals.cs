@@ -9,7 +9,7 @@ public class Globals : MonoBehaviour {
 		Waiting,
 		Selected,
 		Busy,
-		Paused
+		Paused,
 	}
 
 	public enum Direction{
